@@ -1,0 +1,35 @@
+Towards the first release of fairgrad.
+..
+.. Uncomment the header that is right (remove the leading dots).
+..
+.. Removed
+.. -------
+..
+.. - A bullet item for the Removed category.
+..
+Added
+.. -----
+..
+ - Basic version of group fairness including equal odds, equal opportunity, and accuracy parity.
+ - Supports approximate fairness.
+..
+.. Changed
+.. -------
+..
+.. - A bullet item for the Changed category.
+..
+.. Deprecated
+.. ----------
+..
+.. - A bullet item for the Deprecated category.
+..
+.. Fixed
+.. -----
+..
+.. - A bullet item for the Fixed category.
+..
+.. Security
+.. --------
+..
+.. - A bullet item for the Security category.
+..
