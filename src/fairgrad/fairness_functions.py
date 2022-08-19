@@ -1,4 +1,6 @@
 import numpy as np
+import numpy.typing as npt
+from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
 
@@ -9,7 +11,13 @@ def convert(preds):
 
 
 class FairnessMeasure:
-    def __init__(self, y_unique, s_unique, y, s):
+    def __init__(
+        self,
+        y_unique: npt.NDArray[int],
+        s_unique: npt.NDArray[int],
+        y: npt.NDArray[int],
+        s: npt.NDArray[int],
+    ):
         self.y_unique = y_unique
         self.s_unique = s_unique
         self.init_C(y, s)
@@ -17,6 +25,16 @@ class FairnessMeasure:
 
 
 class EqualizedOdds(FairnessMeasure):
+    r"""The function implements the equal odds fairness function. A model :math:`h_θ` is fair for Equalized Odds when
+    the probability of predicting the correct label is independent of the sensitive attribute.
+
+    Args:
+        y_unique (npt.ndarray[int]): all unique labels in all label space.
+        s_unique (npt.ndarray[int]): all unique protected attributes in all protected attribute space.
+        y (npt.ndarray[int]): all label space
+        s (npt.ndarray[int]): all protected attribute space
+    """
+
     def init_C(self, y, s):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
         self.C = np.zeros((n_groups, n_groups))
@@ -62,6 +80,16 @@ class EqualizedOdds(FairnessMeasure):
 
 
 class AccuracyParity(FairnessMeasure):
+    r"""The function implements the accuracy parity fairness function.
+    A model :math:`h_θ` is fair for Accuracy Parity when theprobability of being correct is independent of the sensitive attribute.
+
+    Args:
+        y_unique (npt.ndarray[int]): all unique labels in all label space.
+        s_unique (npt.ndarray[int]): all unique protected attributes in all protected attribute space.
+        y (npt.ndarray[int]): all label space
+        s (npt.ndarray[int]): all protected attribute space
+    """
+
     def init_C(self, y, s):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
         self.C = np.zeros((n_groups, n_groups))
@@ -105,7 +133,26 @@ class AccuracyParity(FairnessMeasure):
 
 
 class EqualityOpportunity:
-    def __init__(self, y_desirable, y_unique, s_unique, y, s):
+    r"""The function implements the accuracy parity fairness function.
+    A model :math:`h_θ` is fair for Equality of Opportunity when the probability of predicting the
+    correct label is independent of the sensitive attribute for a given subset of labels called the desirable outcomes
+
+    Args:
+        y_unique (npt.ndarray[int]): all unique labels in all label space.
+        s_unique (npt.ndarray[int]): all unique protected attributes in all protected attribute space.
+        y (npt.ndarray[int]): all label space
+        s (npt.ndarray[int]): all protected attribute space
+        y_desirable (npt.ndarray[int]): the label for which the fairness needs to be enforced.
+    """
+
+    def __init__(
+        self,
+        y_unique: npt.NDArray[int],
+        s_unique: npt.NDArray[int],
+        y: npt.NDArray[int],
+        s: npt.NDArray[int],
+        y_desirable: npt.NDArray[int],
+    ):
         self.y_desirable = y_desirable
         self.y_unique = y_unique
         self.s_unique = s_unique
@@ -135,9 +182,12 @@ class EqualityOpportunity:
                     j, (self.y_unique.shape[0], self.s_unique.shape[0])
                 )
                 if l == lp:
-                    if l in self.y_desirable:
-                        self.C[i, j] = np.sum(s[y == lp] == rp) / np.sum(y == lp)
+                    self.C[i, j] = np.sum(s[y == lp] == rp) / np.sum(y == lp)
         self.C = self.C - np.eye(n_groups)
+        for i in indices:
+            l, r = np.unravel_index(i, (self.y_unique.shape[0], self.s_unique.shape[0]))
+            if l not in self.y_desirable:
+                self.C[i, :] = 0
 
     def init_P(self, y, s):
         self.P = np.zeros((self.y_unique.shape[0], self.s_unique.shape[0]))
@@ -160,7 +210,8 @@ class EqualityOpportunity:
         return groupwise_fairness
 
 
-class FairnessSetupArguments(NamedTuple):
+@dataclass
+class FairnessSetupArguments:
     fairness_function_name: str
     y_unique: np.asarray
     s_unique: np.asarray
