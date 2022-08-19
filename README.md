@@ -8,27 +8,28 @@ You can get ```fairgrad``` from pypi, which means it can be easily installed via
 pip install fairgrad
 ```
 
+# Documentation
+The documenation can be found at [read the docs](https://fairgrad.readthedocs.io/en/latest/index.html)
+
 # Example usage 
 To use fairgrad simply replace your pytorch cross entropy loss with fairgrad cross entropy loss. 
-Alongside, regular pytorch cross entropy arguments, it expects following meta data in the form of python dictionary.
+Alongside, regular pytorch cross entropy arguments, it expects following extra arguments.
 
 ```
-fairness_related_arguments = {
-  'y_train' : All train example's corresponding label (np.asarray[int]).
-  's_train' : All train example's corresponding sensitive attribute. This means if there
-            are 2 sensitive attributes, with each of them being binary. For instance gender - (male and female) and
-            age (above 45, below 45). Total unique sentive attributes are 4 (np.asarray[int]).
-  'fairness_measure': Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity" (string). 
-  'epsilon': The slack which is allowed for the final fairness level (float). 
-  'fairness_rate': Parameter which intertwines current fairness weights with sum of previous fairness rates.
-}
+y_train (np.asarray[int], Tensor, optional): All train example's corresponding label
+s_train (np.asarray[int], Tensor, optional): All train example's corresponding sensitive attribute. This means if there
+        are 2 sensitive attributes, with each of them being binary. For instance gender - (male and female) and
+        age (above 45, below 45). Total unique sentive attributes are 4.
+fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity".
+epsilon (float, optional): The slack which is allowed for the final fairness level.
+fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
 ```
 
 ```python
 # Note this is short snippet. One still needs to models and iterators.
 # Full worked out example is available here - @TODO
 
-from fairgrad.torch.cross_entropy import CrossEntropyLoss
+from fairgrad.torch import CrossEntropyLoss
 
 # define cross entropy loss 
 criterion = CrossEntropyLoss(fairness_related_meta_data=fairness_related_meta_data)
