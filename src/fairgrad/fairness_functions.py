@@ -105,10 +105,45 @@ class AccuracyParity(FairnessMeasure):
 
 
 class EqualityOpportunity:
-    def __init__(self, y_desirable, y_unique, s_unique):
+    def __init__(self, y_desirable, y_unique, s_unique, y, s):
         self.y_desirable = y_desirable
         self.y_unique = y_unique
         self.s_unique = s_unique
+        self.y = y
+        self.s = s
+        self.init_C(self.y, self.s)
+        self.init_P(self.y, self.s)
+
+    def init_C(self, y, s):
+        n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
+        self.C = np.zeros((n_groups, n_groups))
+
+        indices = np.ravel_multi_index(
+            (
+                [l for l in self.y_unique for r in self.s_unique],
+                [r for l in self.y_unique for r in self.s_unique],
+            ),
+            (self.y_unique.shape[0], self.s_unique.shape[0]),
+        )
+
+        for i in indices:
+            for j in indices:
+                l, r = np.unravel_index(
+                    i, (self.y_unique.shape[0], self.s_unique.shape[0])
+                )
+                lp, rp = np.unravel_index(
+                    j, (self.y_unique.shape[0], self.s_unique.shape[0])
+                )
+                if l == lp:
+                    if l in self.y_desirable:
+                        self.C[i, j] = np.sum(s[y == lp] == rp) / np.sum(y == lp)
+        self.C = self.C - np.eye(n_groups)
+
+    def init_P(self, y, s):
+        self.P = np.zeros((self.y_unique.shape[0], self.s_unique.shape[0]))
+        for l in self.y_unique:
+            for r in self.s_unique:
+                self.P[l, r] = np.mean(np.logical_and(y == l, s == r))
 
     def groupwise(self, preds, y, s):
         preds = convert(preds)
@@ -147,6 +182,8 @@ def setup_fairness_function(fairness_setup: FairnessSetupArguments):
             y_unique=fairness_setup.y_unique,
             s_unique=fairness_setup.s_unique,
             y_desirable=fairness_setup.y_desirable,
+            y=fairness_setup.all_train_y,
+            s=fairness_setup.all_train_s,
         )
     elif fairness_setup.fairness_function_name == "accuracy_parity":
         fairness_function = AccuracyParity(

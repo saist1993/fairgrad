@@ -1,2 +1,2 @@
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 from fairgrad.torch.cross_entropy import CrossEntropyLoss

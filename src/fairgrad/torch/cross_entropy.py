@@ -10,7 +10,7 @@ import numpy as np
 from torch import Tensor
 import numpy.typing as npt
 from fairgrad.fairness_functions import *
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 
 def get_fairness_function(fairness_function, all_train_y, all_train_s):
@@ -76,8 +76,8 @@ class CrossEntropyLoss(_WeightedLoss):
             and :attr:`reduce` are in the process of being deprecated, and in
             the meantime, specifying either of those two args will override
             :attr:`reduction`. Default: ``'mean'``
-        y_train (np.asarray[int], optional): All train example's corresponding label
-        s_train (np.asarray[int], optional): All train example's corresponding sensitive attribute. This means if there
+        y_train (np.asarray[int], Tensor, optional): All train example's corresponding label
+        s_train (np.asarray[int], Tensor, optional): All train example's corresponding sensitive attribute. This means if there
             are 2 sensitive attributes, with each of them being binary. For instance gender - (male and female) and
             age (above 45, below 45). Total unique sentive attributes are 4.
         fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity".
@@ -91,7 +91,7 @@ class CrossEntropyLoss(_WeightedLoss):
         >>> input = torch.randn(10, 5, requires_grad=True)
         >>> target = torch.empty(10, dtype=torch.long).random_(2)
         >>> s = torch.empty(10, dtype=torch.long).random_(2) # protected attribute
-        >>> loss = nn.CrossEntropyLoss(y_train = target, s_train = s, fairness_measure = 'equal_odds')
+        >>> loss = CrossEntropyLoss(y_train = target, s_train = s, fairness_measure = 'equal_odds')
         >>> output = loss(input, target, s, mode='train')
         >>> output.backward()
     """
@@ -105,15 +105,15 @@ class CrossEntropyLoss(_WeightedLoss):
         ignore_index: int = -100,
         reduce=None,
         reduction: str = "mean",
-        y_train: Optional[npt.NDArray[np.int]] = None,
-        s_train: Optional[npt.NDArray[np.int]] = None,
+        y_train: Optional[Union[npt.NDArray[int], Tensor]] = None,
+        s_train: Optional[Union[npt.NDArray[int], Tensor]] = None,
         fairness_measure: Optional[str] = None,
         epsilon: Optional[float] = 0.0,
         fairness_rate: Optional[float] = 0.01,
     ) -> None:
         super(CrossEntropyLoss, self).__init__(weight, size_average, reduce, reduction)
         self.ignore_index = ignore_index
-        if self.y_train and self.s_train and self.fairness_measure:
+        if y_train is not None and s_train is not None and fairness_measure is not None:
             self.fairness_flag = True
         else:
             warnings.warn(
@@ -122,19 +122,16 @@ class CrossEntropyLoss(_WeightedLoss):
             )
         if self.fairness_flag:
             # Below keys is necessary
-            assert y_train != None
-            assert s_train != None
-            assert fairness_measure != None
-            self.y_tain = y_train
+            self.y_train = y_train
             self.s_train = s_train
             self.epsilon = epsilon
             self.fairness_measure = fairness_measure
             self.fairness_rate = fairness_rate
 
             if type(self.y_train) == torch.Tensor:
-                self.y_train = fairness_related_meta_data["y_train"].detach().numpy()
+                self.y_train = self.y_train.detach().numpy()
             if type(self.s_train) == torch.Tensor:
-                self.s_train = fairness_related_meta_data["s_train"].detach().numpy()
+                self.s_train = self.s_train.detach().numpy()
 
             self.y_unique = np.unique(self.y_train)
             self.s_unique = np.unique(self.s_train)
