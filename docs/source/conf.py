@@ -27,6 +27,7 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx_rtd_theme",
 ]
 
 templates_path = ["_templates"]
@@ -42,5 +43,5 @@ autodoc_typehints = "description"
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
-html_static_path = ["_static"]
+# html_theme = "alabaster"
+# html_static_path = ["_static"]
