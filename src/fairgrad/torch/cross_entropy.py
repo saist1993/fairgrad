@@ -8,6 +8,7 @@ from torch.nn import _reduction as _Reduction
 import torch
 import numpy as np
 from torch import Tensor
+import numpy.typing as npt
 from fairgrad.fairness_functions import *
 from typing import Callable, Optional
 
@@ -104,8 +105,8 @@ class CrossEntropyLoss(_WeightedLoss):
         ignore_index: int = -100,
         reduce=None,
         reduction: str = "mean",
-        y_train: Optional[np.ndarray[int]] = None,
-        s_train: Optional[np.ndarray[int]] = None,
+        y_train: Optional[npt.NDArray[np.int]] = None,
+        s_train: Optional[npt.NDArray[np.int]] = None,
         fairness_measure: Optional[str] = None,
         epsilon: Optional[float] = 0.0,
         fairness_rate: Optional[float] = 0.01,
