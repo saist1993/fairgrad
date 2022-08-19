@@ -8,7 +8,7 @@ from torch.nn import _reduction as _Reduction
 import torch
 import numpy as np
 from torch import Tensor
-from .fairness_functions import *
+from fairgrad.fairness_functions import *
 from typing import Callable, Optional
 
 
@@ -112,15 +112,14 @@ class CrossEntropyLoss(_WeightedLoss):
             and :attr:`reduce` are in the process of being deprecated, and in
             the meantime, specifying either of those two args will override
             :attr:`reduction`. Default: ``'mean'``
-        fairness_related_meta_data (dict, optional): Specifies all fairness related meta data which are
-            necessary for implementing fairgrad. This includes following information
-            y_train (np.asarray[int]): All train example's corresponding label
-            s_train (np.asarray[int]): All train example's corresponding sensitive attribute. This means if there
+        y_train (np.asarray[int], optional): All train example's corresponding label
+        s_train (np.asarray[int], optional): All train example's corresponding sensitive attribute. This means if there
             are 2 sensitive attributes, with each of them being binary. For instance gender - (male and female) and
             age (above 45, below 45). Total unique sentive attributes are 4.
-            fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity".
-            epsilon (float): The slack which is allowed for the final fairness level.
-            fairness_rate (float): Parameter which intertwines current fairness weights with sum of previous fairness rates.
+        fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity".
+        epsilon (float, optional): The slack which is allowed for the final fairness level.
+        fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
+
 
 
     Shape:
@@ -138,10 +137,11 @@ class CrossEntropyLoss(_WeightedLoss):
 
     Examples::
 
-        >>> loss = nn.CrossEntropyLoss()
-        >>> input = torch.randn(3, 5, requires_grad=True)
-        >>> target = torch.empty(3, dtype=torch.long).random_(5)
-        >>> output = loss(input, target)
+        >>> input = torch.randn(10, 5, requires_grad=True)
+        >>> target = torch.empty(10, dtype=torch.long).random_(2)
+        >>> s = torch.empty(10, dtype=torch.long).random_(2) # protected attribute
+        >>> loss = nn.CrossEntropyLoss(y_train = target, s_train = s, fairness_measure = 'equal_odds')
+        >>> output = loss(input, target, s, mode='train')
         >>> output.backward()
     """
     __constants__ = ["ignore_index", "reduction"]
@@ -154,40 +154,42 @@ class CrossEntropyLoss(_WeightedLoss):
         ignore_index: int = -100,
         reduce=None,
         reduction: str = "mean",
-        fairness_related_meta_data: dict = {},
+        y_train: Optional[np.ndarray[int]] = None,
+        s_train: Optional[np.ndarray[int]] = None,
+        fairness_measure: Optional[str] = None,
+        epsilon: Optional[float] = 0.0,
+        fairness_rate: Optional[float] = 0.01,
     ) -> None:
         super(CrossEntropyLoss, self).__init__(weight, size_average, reduce, reduction)
         self.ignore_index = ignore_index
-        if fairness_related_meta_data:
+        if self.y_train and self.s_train and self.fairness_measure:
+            self.fairness_flag = True
+        else:
+            warnings.warn(
+                "Fairgrad mechanism is not employed as either y_train or s_train "
+                "or fairness_measure is missing. Reverting to regular Cross Entropy Loss"
+            )
+        if self.fairness_flag:
             # Below keys is necessary
-            assert "y_train" in fairness_related_meta_data.keys()
-            assert "s_train" in fairness_related_meta_data.keys()
-            assert "fairness_measure" in fairness_related_meta_data.keys()
+            assert y_train != None
+            assert s_train != None
+            assert fairness_measure != None
+            self.y_tain = y_train
+            self.s_train = s_train
+            self.epsilon = epsilon
+            self.fairness_measure = fairness_measure
+            self.fairness_rate = fairness_rate
 
-            # Following are optional. fairness_rate of 0.01 seems to work well for wide range of task.
-            try:
-                self.epsilon = fairness_related_meta_data["epsilon"]
-            except KeyError:
-                self.epsilon = 0.0
-            try:
-                self.fairness_rate = fairness_related_meta_data["fairness_rate"]
-            except KeyError:
-                self.fairness_rate = 0.01
-
-            self.y_train = fairness_related_meta_data["y_train"]
-            self.s_train = fairness_related_meta_data["s_train"]
             if type(self.y_train) == torch.Tensor:
-                self.y_train = fairness_related_meta_data["y_train"].numpy()
+                self.y_train = fairness_related_meta_data["y_train"].detach().numpy()
             if type(self.s_train) == torch.Tensor:
-                self.s_train = fairness_related_meta_data["s_train"].numpy()
+                self.s_train = fairness_related_meta_data["s_train"].detach().numpy()
 
             self.y_unique = np.unique(self.y_train)
             self.s_unique = np.unique(self.s_train)
-            self.fairness_measure = fairness_related_meta_data["fairness_measure"]
             self.fairness_function = get_fairness_function(
                 self.fairness_measure, self.y_train, self.s_train
             )
-            self.fairness_flag = True
 
             # some lists to store all information over time. This in the future would be given as an option so
             # as to save space. @TODO: describe them individually.
@@ -199,9 +201,6 @@ class CrossEntropyLoss(_WeightedLoss):
             self.cumulative_fairness = torch.zeros(
                 (self.y_unique.shape[0], 2 * self.s_unique.shape[0])
             )
-
-        else:
-            self.fairness_flag = False
 
     def forward(
         self, input: Tensor, target: Tensor, s: Tensor = None, mode: str = "train"

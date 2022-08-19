@@ -28,7 +28,7 @@ fairness_related_arguments = {
 # Note this is short snippet. One still needs to models and iterators.
 # Full worked out example is available here - @TODO
 
-from fairgrad.cross_entropy import CrossEntropyLoss
+from fairgrad.torch.cross_entropy import CrossEntropyLoss
 
 # define cross entropy loss 
 criterion = CrossEntropyLoss(fairness_related_meta_data=fairness_related_meta_data)
@@ -36,12 +36,12 @@ criterion = CrossEntropyLoss(fairness_related_meta_data=fairness_related_meta_da
 # Train loop
 
 for inputs, labels, protected_attributes in train_iterator:
-  model.train()
-  optimizer.zero_grad()
-  output = model(inputs)
-  loss = criterion(output, labels, protected_attributes, mode='train')
-  loss.backward()
-  optimizer.step()
+    model.train()
+    optimizer.zero_grad()
+    output = model(inputs)
+    loss = criterion(output, labels, protected_attributes, mode='train')
+    loss.backward()
+    optimizer.step()
 ```
 
 # Citation
