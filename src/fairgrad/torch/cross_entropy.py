@@ -49,46 +49,9 @@ class _WeightedLoss(_Loss):
 
 
 class CrossEntropyLoss(_WeightedLoss):
-    r"""This criterion combines :func:`nn.LogSoftmax` and :func:`nn.NLLLoss` in one single class.
-
-    It is useful when training a classification problem with `C` classes.
-    If provided, the optional argument :attr:`weight` should be a 1D `Tensor`
-    assigning weight to each of the classes.
-    This is particularly useful when you have an unbalanced training set.
-
-    The `input` is expected to contain raw, unnormalized scores for each class.
-
-    `input` has to be a Tensor of size either :math:`(minibatch, C)` or
-    :math:`(minibatch, C, d_1, d_2, ..., d_K)`
-    with :math:`K \geq 1` for the `K`-dimensional case (described later).
-
-    This criterion expects a class index in the range :math:`[0, C-1]` as the
-    `target` for each value of a 1D tensor of size `minibatch`; if `ignore_index`
-    is specified, this criterion also accepts this class index (this index may not
-    necessarily be in the class range).
-
-    The loss can be described as:
-
-    .. math::
-        \text{loss}(x, class) = -\log\left(\frac{\exp(x[class])}{\sum_j \exp(x[j])}\right)
-                       = -x[class] + \log\left(\sum_j \exp(x[j])\right)
-
-    or in the case of the :attr:`weight` argument being specified:
-
-    .. math::
-        \text{loss}(x, class) = weight[class] \left(-x[class] + \log\left(\sum_j \exp(x[j])\right)\right)
-
-    The losses are averaged across observations for each minibatch. If the
-    :attr:`weight` argument is specified then this is a weighted average:
-
-    .. math::
-        \text{loss} = \frac{\sum^{N}_{i=1} loss(i, class[i])}{\sum^{N}_{i=1} weight[class[i]]}
-
-    Can also be used for higher dimension inputs, such as 2D images, by providing
-    an input of size :math:`(minibatch, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1`,
-    where :math:`K` is the number of dimensions, and a target of appropriate shape
-    (see below).
-
+    r"""This is an extension of the CrossEntropyLoss provided by pytorch. Please check pytorch documentation
+    for understanding the cross entropy loss. Here, we augment the cross entropy to enforce fairness. The
+    exact algorithm can be found in Fairgrad paper <https://arxiv.org/abs/2206.10923>.
 
     Args:
         weight (Tensor, optional): a manual rescaling weight given to each class.
@@ -121,19 +84,6 @@ class CrossEntropyLoss(_WeightedLoss):
         fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
 
 
-
-    Shape:
-        - Input: :math:`(N, C)` where `C = number of classes`, or
-          :math:`(N, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1`
-          in the case of `K`-dimensional loss.
-        - Target: :math:`(N)` where each value is :math:`0 \leq \text{targets}[i] \leq C-1`, or
-          :math:`(N, d_1, d_2, ..., d_K)` with :math:`K \geq 1` in the case of
-          K-dimensional loss.
-        - Output: scalar.
-          If :attr:`reduction` is ``'none'``, then the same size as the target:
-          :math:`(N)`, or
-          :math:`(N, d_1, d_2, ..., d_K)` with :math:`K \geq 1` in the case
-          of K-dimensional loss.
 
     Examples::
 
