@@ -122,6 +122,10 @@ class CrossEntropyLoss(_WeightedLoss):
             )
         if self.fairness_flag:
             # Below keys is necessary
+            assert all(y_train >= 0), "labels space must start with 0, and not -1"
+            assert all(
+                s_train >= 0
+            ), "protected label space must start with 0, and not -1"
             self.y_train = y_train
             self.s_train = s_train
             self.epsilon = epsilon

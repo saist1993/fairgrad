@@ -18,7 +18,6 @@ You can install FairGrad from PyPI with `pip` or your favorite package manager::
 
     pip install fairgrad
 
-
 Quick Start
 ------------
 
@@ -26,10 +25,12 @@ To use fairgrad simply replace your pytorch cross entropy loss with
 fairgrad cross entropy loss. Alongside, regular pytorch cross entropy arguments,
 it expects following *extra* arguments::
 
-    y_train (np.asarray[int], Tensor, optional): All train example's corresponding label
+    y_train (np.asarray[int], Tensor, optional): All train example's corresponding label.
+             Note that the label space must start from 0.
     s_train (np.asarray[int], Tensor, optional): All train example's corresponding sensitive attribute. This means if there
             are 2 sensitive attributes, with each of them being binary. For instance gender - (male and female) and
             age (above 45, below 45). Total unique sentive attributes are 4.
+            Note that the protected space must start from 0.
     fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity".
     epsilon (float, optional): The slack which is allowed for the final fairness level.
     fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
@@ -46,3 +47,5 @@ Below is a simple example::
         >>> loss = CrossEntropyLoss(y_train = target, s_train = s, fairness_measure = 'equal_odds')
         >>> output = loss(input, target, s, mode='train')
         >>> output.backward()
+
+For complete worked out example refer to example folder on github.
