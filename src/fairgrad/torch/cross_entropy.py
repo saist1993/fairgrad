@@ -116,6 +116,7 @@ class CrossEntropyLoss(_WeightedLoss):
         if y_train is not None and s_train is not None and fairness_measure is not None:
             self.fairness_flag = True
         else:
+            self.fairness_flag = False
             warnings.warn(
                 "Fairgrad mechanism is not employed as either y_train or s_train "
                 "or fairness_measure is missing. Reverting to regular Cross Entropy Loss"
