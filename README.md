@@ -1,5 +1,6 @@
 # FairGrad: Fairness Aware Gradient Descent
 [![Documentation Status](https://readthedocs.org/projects/pip/badge/)](https://fairgrad.readthedocs.io/en/latest/)
+[![PyPI version](https://badge.fury.io/py/fairgrad.svg)](https://badge.fury.io/py/fairgrad)
 
 FairGrad, is an easy to use general purpose approach to enforce fairness for gradient descent based methods. 
 
