@@ -49,3 +49,14 @@ Below is a simple example::
         >>> output.backward()
 
 For complete worked out example refer to example folder on github.
+
+Citation
+-------------
+
+Citation for this work::
+
+    @article{maheshwari2022fairgrad,
+              title={FairGrad: Fairness Aware Gradient Descent},
+              author={Maheshwari, Gaurav and Perrot, Micha{\"e}l},
+              journal={arXiv preprint arXiv:2206.10923},
+              year={2022}}
