@@ -1,5 +1,0 @@
-Towards the first release of fairgrad.
-Added
-..
- - Basic version of group fairness including equal odds, equal opportunity, and accuracy parity.
- - Supports approximate fairness.
