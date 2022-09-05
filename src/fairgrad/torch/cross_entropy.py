@@ -134,9 +134,9 @@ class CrossEntropyLoss(_WeightedLoss):
             self.fairness_rate = fairness_rate
 
             if type(self.y_train) == torch.Tensor:
-                self.y_train = self.y_train.detach().numpy()
+                self.y_train = self.y_train.cpu().detach().numpy()
             if type(self.s_train) == torch.Tensor:
-                self.s_train = self.s_train.detach().numpy()
+                self.s_train = self.s_train.cpu().detach().numpy()
 
             self.y_unique = np.unique(self.y_train)
             self.s_unique = np.unique(self.s_train)
@@ -168,7 +168,9 @@ class CrossEntropyLoss(_WeightedLoss):
         if self.fairness_flag and mode == "train":
 
             groupwise_fairness = self.fairness_function.groupwise(
-                input.detach().numpy(), target.detach().numpy(), s.detach().numpy()
+                input.cpu().detach().numpy(),
+                target.cpu().detach().numpy(),
+                s.cpu().detach().numpy(),
             )
 
             if self.step_fairness != []:

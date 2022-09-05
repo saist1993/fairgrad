@@ -1,11 +1,11 @@
 import torch
 import numpy as np
-from fairgrad import __version__
-from fairgrad.torch import CrossEntropyLoss
+from src.fairgrad import __version__
+from src.fairgrad.torch.cross_entropy import CrossEntropyLoss
 
 
 def test_version():
-    assert __version__ == "0.1.1"
+    assert __version__ == "0.1.4"
 
 
 def test_complete_cross_entropy_loss_with_tensors():
@@ -27,7 +27,12 @@ def test_complete_cross_entropy_loss_with_numpy():
 
 
 def test_all_fairness_measure():
-    fairness_measures = ["equal_odds", "equal_opportunity", "accuracy_parity"]
+    fairness_measures = [
+        "equal_odds",
+        "equal_opportunity",
+        "accuracy_parity",
+        "demographic_parity",
+    ]
 
     for fairness_measure in fairness_measures:
         test_input = torch.randn(10, 5, requires_grad=True)
