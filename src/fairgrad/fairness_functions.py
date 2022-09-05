@@ -95,7 +95,7 @@ class AccuracyParity(FairnessMeasure):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
         self.C = np.zeros((n_groups, n_groups))
         self.C0 = np.zeros((n_groups,))
-        
+
         indices = np.ravel_multi_index(
             (
                 [l for l in self.y_unique for r in self.s_unique],
@@ -189,9 +189,7 @@ class EqualityOpportunity:
                     self.C[i, j] = np.mean(s[y == lp] == rp)
         self.C = self.C - np.eye(n_groups)
         for i in indices:
-            l, r = np.unravel_index(
-                i, (self.y_unique.shape[0], self.s_unique.shape[0])
-            )
+            l, r = np.unravel_index(i, (self.y_unique.shape[0], self.s_unique.shape[0]))
             if l not in self.y_desirable:
                 self.C[i, :] = 0
 
@@ -215,6 +213,7 @@ class EqualityOpportunity:
 
         return groupwise_fairness
 
+
 class DemographicParity(FairnessMeasure):
     r"""The function implements the demographic parity fairness function. A model :math:`h_θ` is fair for Demographic Parity when
     the probability of predicting each label is independent of the sensitive attribute.
@@ -225,6 +224,7 @@ class DemographicParity(FairnessMeasure):
         y (npt.ndarray[int]): all binary label space
         s (npt.ndarray[int]): all protected attribute space
     """
+
     def __init__(
         self,
         y_unique: npt.NDArray[int],
@@ -235,59 +235,60 @@ class DemographicParity(FairnessMeasure):
         super().__init__(y_unique, s_unique, y, s)
         if y_unique.shape[0] != 2:
             raise ValueError(
-                'Demographic Parity is only applicable to binary problems (y_unique contained {} classes.'.format(y_unique.shape[0])
+                "Demographic Parity is only applicable to binary problems (y_unique contained {} classes.".format(
+                    y_unique.shape[0]
+                )
             )
-    
+
     def init_C(self, y, s):
-        n_groups = self.y_unique.shape[0]*self.s_unique.shape[0]
-        self.C = np.zeros((n_groups,n_groups))
+        n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
+        self.C = np.zeros((n_groups, n_groups))
         self.C0 = np.zeros((n_groups,))
-        
+
         indices = np.ravel_multi_index(
             (
                 [l for l in self.y_unique for r in self.s_unique],
-                [r for l in self.y_unique for r in self.s_unique]
+                [r for l in self.y_unique for r in self.s_unique],
             ),
-            (self.y_unique.shape[0],self.s_unique.shape[0])
+            (self.y_unique.shape[0], self.s_unique.shape[0]),
         )
-        
+
         for i in indices:
-            l,r = np.unravel_index(
-                i,(self.y_unique.shape[0],self.s_unique.shape[0])
-            )
+            l, r = np.unravel_index(i, (self.y_unique.shape[0], self.s_unique.shape[0]))
             for j in indices:
-                lp,rp = np.unravel_index(
-                    j,(self.y_unique.shape[0],self.s_unique.shape[0])
+                lp, rp = np.unravel_index(
+                    j, (self.y_unique.shape[0], self.s_unique.shape[0])
                 )
 
                 if l == lp:
-                    self.C[i,j] = np.mean(np.logical_and(y==lp,s==rp))
+                    self.C[i, j] = np.mean(np.logical_and(y == lp, s == rp))
                     if r == rp:
-                        self.C[i,j] = self.C[i,j] - np.mean(y[s==rp]==lp)
+                        self.C[i, j] = self.C[i, j] - np.mean(y[s == rp] == lp)
                 else:
-                    self.C[i,j] = -np.mean(np.logical_and(y==lp,s==rp))
+                    self.C[i, j] = -np.mean(np.logical_and(y == lp, s == rp))
                     if r == rp:
-                        self.C[i,j] = self.C[i,j] + np.mean(y[s==rp]==lp)
-            self.C0[i] = np.mean(y!=l) - np.mean(y[s==r]!=l)
-                    
+                        self.C[i, j] = self.C[i, j] + np.mean(y[s == rp] == lp)
+            self.C0[i] = np.mean(y != l) - np.mean(y[s == r] != l)
+
     def init_P(self, y, s):
         self.P = np.zeros((self.y_unique.shape[0], self.s_unique.shape[0]))
         for l in self.y_unique:
             for r in self.s_unique:
-                self.P[l,r] = np.mean(np.logical_and(y==l,s==r))
-        
+                self.P[l, r] = np.mean(np.logical_and(y == l, s == r))
+
     def groupwise(self, preds, y, s):
         preds = convert(preds)
 
-        groupwise_fairness = np.zeros((self.y_unique.shape[0],self.s_unique.shape[0]))
+        groupwise_fairness = np.zeros((self.y_unique.shape[0], self.s_unique.shape[0]))
 
         for l in self.y_unique:
             reference_rate = np.mean(preds == l)
             for r in self.s_unique:
-                mask = (s==r)
-                groupwise_fairness[l,r] = np.mean(preds[mask] == l) - reference_rate
-                            
+                mask = s == r
+                groupwise_fairness[l, r] = np.mean(preds[mask] == l) - reference_rate
+
         return groupwise_fairness
+
 
 @dataclass
 class FairnessSetupArguments:
