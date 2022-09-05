@@ -57,7 +57,7 @@ class EqualizedOdds(FairnessMeasure):
                     j, (self.y_unique.shape[0], self.s_unique.shape[0])
                 )
                 if l == lp:
-                    self.C[i, j] = np.sum(s[y == lp] == rp) / np.sum(y == lp)
+                    self.C[i, j] = np.mean(s[y == lp] == rp)
         self.C = self.C - np.eye(n_groups)
 
     def init_P(self, y, s):
@@ -186,7 +186,7 @@ class EqualityOpportunity:
                     j, (self.y_unique.shape[0], self.s_unique.shape[0])
                 )
                 if l == lp:
-                    self.C[i, j] = np.sum(s[y == lp] == rp) / np.sum(y == lp)
+                    self.C[i, j] = np.mean(s[y == lp] == rp)
         self.C = self.C - np.eye(n_groups)
         for i in indices:
             l, r = np.unravel_index(
