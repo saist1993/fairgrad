@@ -210,7 +210,15 @@ class CrossEntropyLoss(_WeightedLoss):
             weights = 1 + partial_weights / self.fairness_function.P
             self.step_loss.append(loss)
             self.step_weights.append(weights)
-            weighted_loss = loss * torch.tensor((weights)[target, s])
+            try:
+                device = loss.get_device()
+                device = f"cuda:{device}"
+            except RuntimeError:
+                device = torch.device("cpu")
+            weighted_loss = loss * torch.tensor(
+                (weights)[target.cpu().detach().numpy(), s.cpu().detach().numpy()],
+                device=device,
+            )
             self.step_weighted_loss.append(weighted_loss.mean())
             if self.reduction == "mean":
                 return torch.mean(weighted_loss)
