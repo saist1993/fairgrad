@@ -1,5 +1,5 @@
 # FairGrad: Fairness Aware Gradient Descent
-[![Documentation Status](https://readthedocs.org/projects/pip/badge/)](https://fairgrad.readthedocs.io/en/latest/)
+[![Documentation Status](https://readthedocs.org/projects/fairgrad/badge/?version=latest)](https://fairgrad.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/fairgrad.svg)](https://badge.fury.io/py/fairgrad)
 <a href="https://arxiv.org/abs/2206.10923"><img src="http://img.shields.io/badge/Paper-PDF-red.svg"></a>
 
