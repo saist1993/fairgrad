@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fairgrad"
-version = "0.1.5"
+version = "0.1.6"
 description = ""
 authors = ["gmaheshwari <gaurav.maheshwari@inria.fr>", "mperrot <michael.perrot@inria.fr>"]
 readme = 'README.md'
@@ -24,5 +24,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 pythonpath = [
-  ".", "src", "src/fairgrad"
+  "src/fairgrad"
 ]

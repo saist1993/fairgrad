@@ -1,11 +1,13 @@
 import torch
 import numpy as np
-from src.fairgrad import __version__
-from src.fairgrad.torch.cross_entropy import CrossEntropyLoss
+
+# fairgrad imports.
+from fairgrad import __version__
+from fairgrad.torch.cross_entropy import CrossEntropyLoss
 
 
 def test_version():
-    assert __version__ == "0.1.5"
+    assert __version__ == "0.1.6"
 
 
 def test_complete_cross_entropy_loss_with_tensors():

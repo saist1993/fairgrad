@@ -23,7 +23,8 @@ y_train (np.asarray[int], Tensor, optional): All train example's corresponding l
 s_train (np.asarray[int], Tensor, optional): All train example's corresponding sensitive attribute. This means if there
         are 2 sensitive attributes, with each of them being binary. For instance gender - (male and female) and
         age (above 45, below 45). Total unique sentive attributes are 4.
-fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", and "accuracy_parity".
+fairness_measure (string): Currently we support "equal_odds", "equal_opportunity", "accuracy_parity", and 
+                           "demographic_parity". Note that demographic parity is only supported for binary case.
 epsilon (float, optional): The slack which is allowed for the final fairness level.
 fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
 ```
