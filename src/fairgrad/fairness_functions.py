@@ -155,14 +155,9 @@ class EqualityOpportunity:
         y: npt.NDArray[int],
         s: npt.NDArray[int],
         y_desirable: npt.NDArray[int],
-    ):
+    ):      
         self.y_desirable = y_desirable
-        self.y_unique = y_unique
-        self.s_unique = s_unique
-        self.y = y
-        self.s = s
-        self.init_C(self.y, self.s)
-        self.init_P(self.y, self.s)
+        super().__init__(y_unique, s_unique, y, s)
 
     def init_C(self, y, s):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
@@ -232,13 +227,13 @@ class DemographicParity(FairnessMeasure):
         y: npt.NDArray[int],
         s: npt.NDArray[int],
     ):
-        super().__init__(y_unique, s_unique, y, s)
         if y_unique.shape[0] != 2:
             raise ValueError(
                 "Demographic Parity is only applicable to binary problems (y_unique contained {} classes.".format(
                     y_unique.shape[0]
                 )
             )
+        super().__init__(y_unique, s_unique, y, s)
 
     def init_C(self, y, s):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
