@@ -118,13 +118,13 @@ class AccuracyParity(FairnessMeasure):
             )
             self.C[:, j] = np.mean(s == rp)
 
-        self.C = (
-            self.C
-            - np.eye(n_groups)
-            - np.eye(n_groups, k=self.s_unique.shape[0])
-            - np.eye(n_groups, k=-self.s_unique.shape[0])
-        ) / self.y_unique.shape[0]
-
+        for i in range(self.y_unique.shape[0]):
+            self.C = self.C - np.eye(n_groups, k=i*self.s_unique.shape[0])
+            if i != 0:
+                self.C = self.C - np.eye(n_groups, k=-i*self.s_unique.shape[0])
+                
+        self.C = self.C / self.y_unique.shape[0]
+        
     def init_P(self, y, s):
         self.P = np.zeros((self.y_unique.shape[0], self.s_unique.shape[0]))
         for r in self.s_unique:
@@ -143,7 +143,7 @@ class AccuracyParity(FairnessMeasure):
         return groupwise_fairness
 
 
-class EqualityOpportunity:
+class EqualityOpportunity(FairnessMeasure):
     r"""The function implements the accuracy parity fairness function.
     A model :math:`h_θ` is fair for Equality of Opportunity when the probability of predicting the
     correct label is independent of the sensitive attribute for a given subset of labels called the desirable outcomes
@@ -351,7 +351,7 @@ def instantiate_fairness(
                 )
             if not np.all([(y in y_unique) for y in y_desirable]):
                 raise ValueError(
-                    "Desirable outcomes should be a subset of possible targets: got ´°but expected a subset of {}.".format(
+                    "Desirable outcomes should be a subset of possible targets: got {} but expected a subset of {}.".format(
                         y_desirable, y_unique
                     )
                 )
