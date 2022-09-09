@@ -13,6 +13,7 @@ import numpy.typing as npt
 from fairgrad.fairness_functions import *
 from typing import Callable, Optional, Union, Type
 
+
 class FairnessLoss(nn.modules.loss._Loss):
     r"""This is an extension of the CrossEntropyLoss provided by pytorch. Please check pytorch documentation
     for understanding the cross entropy loss. Here, we augment the cross entropy to enforce fairness. The
@@ -65,7 +66,7 @@ class FairnessLoss(nn.modules.loss._Loss):
     def __init__(
         self,
         base_loss_class: Type[nn.modules.loss._Loss],
-        reduction: str = 'mean',
+        reduction: str = "mean",
         fairness_measure: Optional[Union[str, Type[FairnessMeasure]]] = None,
         y_train: Optional[Union[npt.NDArray[int], Tensor]] = None,
         s_train: Optional[Union[npt.NDArray[int], Tensor]] = None,
@@ -75,25 +76,35 @@ class FairnessLoss(nn.modules.loss._Loss):
         **kwargs,
     ) -> None:
         super().__init__(reduction=reduction)
-        self.base_loss = base_loss_class(reduction='none', **kwargs)
+        self.base_loss = base_loss_class(reduction="none", **kwargs)
         self.reduction = reduction
 
         if fairness_measure is None:
             self.fairness_function = None
-            warnings.warn("FairGrad mechanism is not employed as fairness_measure is missing. Reverting to standard {}.".format(type(self.base_loss).__name__), RuntimeWarning)
+            warnings.warn(
+                "FairGrad mechanism is not employed as fairness_measure is missing. Reverting to standard {}.".format(
+                    type(self.base_loss).__name__
+                ),
+                RuntimeWarning,
+            )
         else:
-            if type(y_train) == torch.Tensor:                
+            if type(y_train) == torch.Tensor:
                 y_train = y_train.cpu().detach().numpy()
             if type(y_desirable) == torch.Tensor:
                 y_desirable = y_desirable.cpu().detach().numpy()
             if type(s_train) == torch.Tensor:
                 s_train = s_train.cpu().detach().numpy()
-                
-            self.fairness_function = instantiate_fairness(fairness_measure, y_train = y_train, s_train = s_train, y_desirable = y_desirable)
-            
+
+            self.fairness_function = instantiate_fairness(
+                fairness_measure,
+                y_train=y_train,
+                s_train=s_train,
+                y_desirable=y_desirable,
+            )
+
             self.epsilon = epsilon
             self.fairness_rate = fairness_rate
-           
+
             # some lists to store all information over time. This in the future would be given as an option so
             # as to save space. @TODO: describe them individually.
             self.step_groupwise_weights = []
@@ -102,25 +113,31 @@ class FairnessLoss(nn.modules.loss._Loss):
             self.step_accuracy = []
             self.step_fairness = []
             self.cumulative_fairness = torch.zeros(
-                (self.fairness_function.y_unique.shape[0], 2 * self.fairness_function.s_unique.shape[0])
+                (
+                    self.fairness_function.y_unique.shape[0],
+                    2 * self.fairness_function.s_unique.shape[0],
+                )
             )
 
-    def reduce(self,loss):
+    def reduce(self, loss):
         if self.reduction == "mean":
             return loss.mean()
         elif self.reduction == "sum":
             return loss.sum()
         else:
             return loss
-        
-    def forward(
-        self, input: Tensor, target: Tensor, s: Tensor = None
-    ) -> Tensor:
+
+    def forward(self, input: Tensor, target: Tensor, s: Tensor = None) -> Tensor:
         loss = self.base_loss(input, target)
 
         if s is None:
             self.fairness_function = None
-            warnings.warn("FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. is missing. Reverting to standard {}.".format(type(self.base_loss).__name__), RuntimeWarning)
+            warnings.warn(
+                "FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. is missing. Reverting to standard {}.".format(
+                    type(self.base_loss).__name__
+                ),
+                RuntimeWarning,
+            )
 
         if self.fairness_function is not None:
             groupwise_fairness = self.fairness_function.groupwise(
@@ -158,16 +175,21 @@ class FairnessLoss(nn.modules.loss._Loss):
 
             lag_parameters = (
                 self.cumulative_fairness[:, : self.fairness_function.s_unique.shape[0]]
-                - self.cumulative_fairness[:, self.fairness_function.s_unique.shape[0] :]
+                - self.cumulative_fairness[
+                    :, self.fairness_function.s_unique.shape[0] :
+                ]
             )
             partial_weights = (
                 self.fairness_function.C.T.dot(lag_parameters.reshape(-1, 1))
-            ).reshape(self.fairness_function.y_unique.shape[0], self.fairness_function.s_unique.shape[0])
+            ).reshape(
+                self.fairness_function.y_unique.shape[0],
+                self.fairness_function.s_unique.shape[0],
+            )
             weights = 1 + partial_weights / self.fairness_function.P
 
             self.step_loss.append(self.reduce(loss))
-            self.step_groupwise_weights.append(weights*self.fairness_function.P)
-            
+            self.step_groupwise_weights.append(weights * self.fairness_function.P)
+
             device = loss.get_device()
             if device >= 0:
                 device = f"cuda:{device}"
@@ -177,11 +199,12 @@ class FairnessLoss(nn.modules.loss._Loss):
                 (weights)[target.cpu().detach().numpy(), s.cpu().detach().numpy()],
                 device=device,
             )
-            
+
             loss = weighted_loss
             self.step_weighted_loss.append(self.reduce(loss))
 
         return self.reduce(loss)
+
 
 class CrossEntropyLoss(FairnessLoss):
     def __init__(self, **kwargs):

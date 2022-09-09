@@ -2,6 +2,7 @@ import numpy as np
 import numpy.typing as npt
 from typing import NamedTuple, Optional
 
+
 def convert(preds):
     if len(preds.shape) == 1:
         return preds
@@ -23,10 +24,10 @@ class FairnessMeasure:
 
     def init_C(self):
         raise NotImplementedError
-    
+
     def init_P(self):
         raise NotImplementedError
-    
+
     def groupwise(self):
         raise NotImplementedError
 
@@ -162,7 +163,7 @@ class EqualityOpportunity:
         y: npt.NDArray[int],
         s: npt.NDArray[int],
         y_desirable: npt.NDArray[int],
-    ):      
+    ):
         self.y_desirable = y_desirable
         super().__init__(y_unique, s_unique, y, s)
 
@@ -291,14 +292,18 @@ class DemographicParity(FairnessMeasure):
 
         return groupwise_fairness
 
+
 NAMES = {
     "equal_odds": EqualizedOdds,
     "equal_opportunity": EqualityOpportunity,
     "accuracy_parity": AccuracyParity,
     "demographic_parity": DemographicParity,
 }
-    
-def instantiate_fairness(fairness_function, y_train = None, s_train = None, y_desirable = None):
+
+
+def instantiate_fairness(
+    fairness_function, y_train=None, s_train=None, y_desirable=None
+):
     if type(fairness_function) == str:
         if fairness_function not in NAMES.keys():
             raise NotImplementedError
@@ -307,30 +312,57 @@ def instantiate_fairness(fairness_function, y_train = None, s_train = None, y_de
     fairness_class = [cls.__name__ for cls in NAMES.values()]
     if isinstance(fairness_function, tuple(NAMES.values())):
         return fairness_function
-    elif isinstance(fairness_function, type) and fairness_function.__name__ in fairness_class:
+    elif (
+        isinstance(fairness_function, type)
+        and fairness_function.__name__ in fairness_class
+    ):
         if y_train is None:
-            raise ValueError("y_train is required when using {}.".format(fairness_function.__name__))
+            raise ValueError(
+                "y_train is required when using {}.".format(fairness_function.__name__)
+            )
         if s_train is None:
-            raise ValueError("s_train is required when using {}.".format(fairness_function.__name__))
-        
+            raise ValueError(
+                "s_train is required when using {}.".format(fairness_function.__name__)
+            )
+
         y_unique = np.unique(y_train)
         s_unique = np.unique(s_train)
 
         if not np.all(y_unique == np.arange(y_unique.shape[0])):
-            raise ValueError("Targets should be consecutive positive integers: got {} but expected {}.".format(y_unique, np.arange(y_unique.shape[0])))
-        
+            raise ValueError(
+                "Targets should be consecutive positive integers: got {} but expected {}.".format(
+                    y_unique, np.arange(y_unique.shape[0])
+                )
+            )
+
         if not np.all(s_unique == np.arange(s_unique.shape[0])):
-            raise ValueError("Sensitive attributes should be consecutive positive integers: got {} but expected {}.".format(s_unqiue, np.arange(s_unique.shape[0])))
-        
+            raise ValueError(
+                "Sensitive attributes should be consecutive positive integers: got {} but expected {}.".format(
+                    s_unqiue, np.arange(s_unique.shape[0])
+                )
+            )
+
         if fairness_function.__name__ == "EqualityOpportunity":
             if y_desirable is None:
-                raise ValueError("y_desirable is required when using {}.".format(fairness_function.__name__))
+                raise ValueError(
+                    "y_desirable is required when using {}.".format(
+                        fairness_function.__name__
+                    )
+                )
             if not np.all([(y in y_unique) for y in y_desirable]):
-                raise ValueError("Desirable outcomes should be a subset of possible targets: got ´°but expected a subset of {}.".format(y_desirable, y_unique))
-            
-            return fairness_function(y_unique, s_unique, y_train, s_train, y_desirable) 
+                raise ValueError(
+                    "Desirable outcomes should be a subset of possible targets: got ´°but expected a subset of {}.".format(
+                        y_desirable, y_unique
+                    )
+                )
+
+            return fairness_function(y_unique, s_unique, y_train, s_train, y_desirable)
         else:
             return fairness_function(y_unique, s_unique, y_train, s_train)
     else:
-        raise ValueError("Fairness measure must be either a subclass of {base_class_name} or an instantiated object of a subclass of {base_class_name}.".format(base_class_name=FairnessMeasure.__name__))
+        raise ValueError(
+            "Fairness measure must be either a subclass of {base_class_name} or an instantiated object of a subclass of {base_class_name}.".format(
+                base_class_name=FairnessMeasure.__name__
+            )
+        )
     return fairness_function
