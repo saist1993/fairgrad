@@ -1,5 +1,6 @@
 import warnings
 
+import torch.nn as nn
 from torch.nn.modules.distance import PairwiseDistance
 from torch.nn.modules.module import Module
 from torch.nn import functional as F
@@ -10,46 +11,9 @@ import numpy as np
 from torch import Tensor
 import numpy.typing as npt
 from fairgrad.fairness_functions import *
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Type
 
-
-def get_fairness_function(fairness_function, all_train_y, all_train_s):
-    fairness_setup_arguments = FairnessSetupArguments(
-        fairness_function_name=fairness_function,
-        y_unique=np.unique(all_train_y),
-        s_unique=np.unique(all_train_s),
-        all_train_y=all_train_y,
-        all_train_s=all_train_s,
-        y_desirable=np.asarray([1]),
-    )
-
-    return setup_fairness_function(fairness_setup_arguments)
-
-
-class _Loss(Module):
-    reduction: str
-
-    def __init__(self, size_average=None, reduce=None, reduction: str = "mean") -> None:
-        super(_Loss, self).__init__()
-        if size_average is not None or reduce is not None:
-            self.reduction = _Reduction.legacy_get_string(size_average, reduce)
-        else:
-            self.reduction = reduction
-
-
-class _WeightedLoss(_Loss):
-    def __init__(
-        self,
-        weight: Optional[Tensor] = None,
-        size_average=None,
-        reduce=None,
-        reduction: str = "mean",
-    ) -> None:
-        super(_WeightedLoss, self).__init__(size_average, reduce, reduction)
-        self.register_buffer("weight", weight)
-
-
-class CrossEntropyLoss(_WeightedLoss):
+class FairnessLoss(nn.modules.loss._Loss):
     r"""This is an extension of the CrossEntropyLoss provided by pytorch. Please check pytorch documentation
     for understanding the cross entropy loss. Here, we augment the cross entropy to enforce fairness. The
     exact algorithm can be found in Fairgrad paper <https://arxiv.org/abs/2206.10923>.
@@ -95,78 +59,70 @@ class CrossEntropyLoss(_WeightedLoss):
         >>> output = loss(input, target, s, mode='train')
         >>> output.backward()
     """
-    __constants__ = ["ignore_index", "reduction"]
+    __constants__ = ["reduction"]
     ignore_index: int
 
     def __init__(
         self,
-        weight: Optional[Tensor] = None,
-        size_average=None,
-        ignore_index: int = -100,
-        reduce=None,
-        reduction: str = "mean",
+        base_loss_class: Type[nn.modules.loss._Loss],
+        reduction: str = 'mean',
+        fairness_measure: Optional[Union[str, Type[FairnessMeasure]]] = None,
         y_train: Optional[Union[npt.NDArray[int], Tensor]] = None,
         s_train: Optional[Union[npt.NDArray[int], Tensor]] = None,
-        fairness_measure: Optional[str] = None,
+        y_desirable: Optional[Union[npt.NDArray[int], Tensor]] = [1],
         epsilon: Optional[float] = 0.0,
         fairness_rate: Optional[float] = 0.01,
+        **kwargs,
     ) -> None:
-        super(CrossEntropyLoss, self).__init__(weight, size_average, reduce, reduction)
-        self.ignore_index = ignore_index
-        if y_train is not None and s_train is not None and fairness_measure is not None:
-            self.fairness_flag = True
+        super().__init__(reduction=reduction)
+        self.base_loss = base_loss_class(reduction='none', **kwargs)
+        self.reduction = reduction
+
+        if fairness_measure is None:
+            self.fairness_function = None
+            warnings.warn("FairGrad mechanism is not employed as fairness_measure is missing. Reverting to standard {}.".format(type(self.base_loss).__name__), RuntimeWarning)
         else:
-            self.fairness_flag = False
-            warnings.warn(
-                "Fairgrad mechanism is not employed as either y_train or s_train "
-                "or fairness_measure is missing. Reverting to regular Cross Entropy Loss"
-            )
-        if self.fairness_flag:
-            # Below keys is necessary
-            assert all(y_train >= 0), "labels space must start with 0, and not -1"
-            assert all(
-                s_train >= 0
-            ), "protected label space must start with 0, and not -1"
-            self.y_train = y_train
-            self.s_train = s_train
+            if type(y_train) == torch.Tensor:                
+                y_train = y_train.cpu().detach().numpy()
+            if type(y_desirable) == torch.Tensor:
+                y_desirable = y_desirable.cpu().detach().numpy()
+            if type(s_train) == torch.Tensor:
+                s_train = s_train.cpu().detach().numpy()
+                
+            self.fairness_function = instantiate_fairness(fairness_measure, y_train = y_train, s_train = s_train, y_desirable = y_desirable)
+            
             self.epsilon = epsilon
-            self.fairness_measure = fairness_measure
             self.fairness_rate = fairness_rate
-
-            if type(self.y_train) == torch.Tensor:
-                self.y_train = self.y_train.cpu().detach().numpy()
-            if type(self.s_train) == torch.Tensor:
-                self.s_train = self.s_train.cpu().detach().numpy()
-
-            self.y_unique = np.unique(self.y_train)
-            self.s_unique = np.unique(self.s_train)
-            self.fairness_function = get_fairness_function(
-                self.fairness_measure, self.y_train, self.s_train
-            )
-
+           
             # some lists to store all information over time. This in the future would be given as an option so
             # as to save space. @TODO: describe them individually.
-            self.step_weights = []
+            self.step_groupwise_weights = []
             self.step_loss = []
             self.step_weighted_loss = []
             self.step_accuracy = []
             self.step_fairness = []
             self.cumulative_fairness = torch.zeros(
-                (self.y_unique.shape[0], 2 * self.s_unique.shape[0])
+                (self.fairness_function.y_unique.shape[0], 2 * self.fairness_function.s_unique.shape[0])
             )
 
+    def reduce(self,loss):
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        else:
+            return loss
+        
     def forward(
-        self, input: Tensor, target: Tensor, s: Tensor = None, mode: str = "train"
+        self, input: Tensor, target: Tensor, s: Tensor = None
     ) -> Tensor:
-        loss = F.cross_entropy(
-            input,
-            target,
-            weight=self.weight,
-            ignore_index=self.ignore_index,
-            reduction="none",
-        )
-        if self.fairness_flag and mode == "train":
+        loss = self.base_loss(input, target)
 
+        if s is None:
+            self.fairness_function = None
+            warnings.warn("FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. is missing. Reverting to standard {}.".format(type(self.base_loss).__name__), RuntimeWarning)
+
+        if self.fairness_function is not None:
             groupwise_fairness = self.fairness_function.groupwise(
                 input.cpu().detach().numpy(),
                 target.cpu().detach().numpy(),
@@ -201,15 +157,17 @@ class CrossEntropyLoss(_WeightedLoss):
             )
 
             lag_parameters = (
-                self.cumulative_fairness[:, : self.s_unique.shape[0]]
-                - self.cumulative_fairness[:, self.s_unique.shape[0] :]
+                self.cumulative_fairness[:, : self.fairness_function.s_unique.shape[0]]
+                - self.cumulative_fairness[:, self.fairness_function.s_unique.shape[0] :]
             )
             partial_weights = (
                 self.fairness_function.C.T.dot(lag_parameters.reshape(-1, 1))
-            ).reshape(self.y_unique.shape[0], self.s_unique.shape[0])
+            ).reshape(self.fairness_function.y_unique.shape[0], self.fairness_function.s_unique.shape[0])
             weights = 1 + partial_weights / self.fairness_function.P
-            self.step_loss.append(loss)
-            self.step_weights.append(weights)
+
+            self.step_loss.append(self.reduce(loss))
+            self.step_groupwise_weights.append(weights*self.fairness_function.P)
+            
             device = loss.get_device()
             if device >= 0:
                 device = f"cuda:{device}"
@@ -219,16 +177,12 @@ class CrossEntropyLoss(_WeightedLoss):
                 (weights)[target.cpu().detach().numpy(), s.cpu().detach().numpy()],
                 device=device,
             )
-            self.step_weighted_loss.append(weighted_loss.mean())
-            if self.reduction == "mean":
-                return torch.mean(weighted_loss)
-            elif self.reduction == "sum":
-                return torch.sum(weighted_loss)
-            else:
-                return weighted_loss
-        if self.reduction == "mean":
-            return torch.mean(loss)
-        elif self.reduction == "sum":
-            return torch.sum(loss)
-        else:
-            return loss
+            
+            loss = weighted_loss
+            self.step_weighted_loss.append(self.reduce(loss))
+
+        return self.reduce(loss)
+
+class CrossEntropyLoss(FairnessLoss):
+    def __init__(self, **kwargs):
+        super().__init__(nn.CrossEntropyLoss, **kwargs)
