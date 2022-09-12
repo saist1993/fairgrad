@@ -1,6 +1,5 @@
 import numpy as np
 import numpy.typing as npt
-from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
 
@@ -22,6 +21,15 @@ class FairnessMeasure:
         self.s_unique = s_unique
         self.init_C(y, s)
         self.init_P(y, s)
+
+    def init_C(self):
+        raise NotImplementedError
+
+    def init_P(self):
+        raise NotImplementedError
+
+    def groupwise(self):
+        raise NotImplementedError
 
 
 class EqualizedOdds(FairnessMeasure):
@@ -110,13 +118,13 @@ class AccuracyParity(FairnessMeasure):
             )
             self.C[:, j] = np.mean(s == rp)
 
-        self.C = (
-            self.C
-            - np.eye(n_groups)
-            - np.eye(n_groups, k=self.s_unique.shape[0])
-            - np.eye(n_groups, k=-self.s_unique.shape[0])
-        ) / self.y_unique.shape[0]
-
+        for i in range(self.y_unique.shape[0]):
+            self.C = self.C - np.eye(n_groups, k=i*self.s_unique.shape[0])
+            if i != 0:
+                self.C = self.C - np.eye(n_groups, k=-i*self.s_unique.shape[0])
+                
+        self.C = self.C / self.y_unique.shape[0]
+        
     def init_P(self, y, s):
         self.P = np.zeros((self.y_unique.shape[0], self.s_unique.shape[0]))
         for r in self.s_unique:
@@ -135,7 +143,7 @@ class AccuracyParity(FairnessMeasure):
         return groupwise_fairness
 
 
-class EqualityOpportunity:
+class EqualityOpportunity(FairnessMeasure):
     r"""The function implements the accuracy parity fairness function.
     A model :math:`h_θ` is fair for Equality of Opportunity when the probability of predicting the
     correct label is independent of the sensitive attribute for a given subset of labels called the desirable outcomes
@@ -157,12 +165,7 @@ class EqualityOpportunity:
         y_desirable: npt.NDArray[int],
     ):
         self.y_desirable = y_desirable
-        self.y_unique = y_unique
-        self.s_unique = s_unique
-        self.y = y
-        self.s = s
-        self.init_C(self.y, self.s)
-        self.init_P(self.y, self.s)
+        super().__init__(y_unique, s_unique, y, s)
 
     def init_C(self, y, s):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
@@ -232,13 +235,13 @@ class DemographicParity(FairnessMeasure):
         y: npt.NDArray[int],
         s: npt.NDArray[int],
     ):
-        super().__init__(y_unique, s_unique, y, s)
         if y_unique.shape[0] != 2:
             raise ValueError(
                 "Demographic Parity is only applicable to binary problems (y_unique contained {} classes.".format(
                     y_unique.shape[0]
                 )
             )
+        super().__init__(y_unique, s_unique, y, s)
 
     def init_C(self, y, s):
         n_groups = self.y_unique.shape[0] * self.s_unique.shape[0]
@@ -290,46 +293,76 @@ class DemographicParity(FairnessMeasure):
         return groupwise_fairness
 
 
-@dataclass
-class FairnessSetupArguments:
-    fairness_function_name: str
-    y_unique: np.asarray
-    s_unique: np.asarray
-    all_train_y: np.asarray
-    all_train_s: np.asarray
-    y_desirable: Optional[np.asarray] = None
+NAMES = {
+    "equal_odds": EqualizedOdds,
+    "equal_opportunity": EqualityOpportunity,
+    "accuracy_parity": AccuracyParity,
+    "demographic_parity": DemographicParity,
+}
 
 
-def setup_fairness_function(fairness_setup: FairnessSetupArguments):
-    if fairness_setup.fairness_function_name == "equal_odds":
-        fairness_function = EqualizedOdds(
-            y_unique=fairness_setup.y_unique,
-            s_unique=fairness_setup.s_unique,
-            y=fairness_setup.all_train_y,
-            s=fairness_setup.all_train_s,
-        )
-    elif fairness_setup.fairness_function_name == "equal_opportunity":
-        fairness_function = EqualityOpportunity(
-            y_unique=fairness_setup.y_unique,
-            s_unique=fairness_setup.s_unique,
-            y_desirable=fairness_setup.y_desirable,
-            y=fairness_setup.all_train_y,
-            s=fairness_setup.all_train_s,
-        )
-    elif fairness_setup.fairness_function_name == "accuracy_parity":
-        fairness_function = AccuracyParity(
-            y_unique=fairness_setup.y_unique,
-            s_unique=fairness_setup.s_unique,
-            y=fairness_setup.all_train_y,
-            s=fairness_setup.all_train_s,
-        )
-    elif fairness_setup.fairness_function_name == "demographic_parity":
-        fairness_function = DemographicParity(
-            y_unique=fairness_setup.y_unique,
-            s_unique=fairness_setup.s_unique,
-            y=fairness_setup.all_train_y,
-            s=fairness_setup.all_train_s,
-        )
+def instantiate_fairness(
+    fairness_function, y_train=None, s_train=None, y_desirable=None
+):
+    if type(fairness_function) == str:
+        if fairness_function not in NAMES.keys():
+            raise NotImplementedError
+        fairness_function = NAMES[fairness_function]
+
+    fairness_class = [cls.__name__ for cls in NAMES.values()]
+    if isinstance(fairness_function, tuple(NAMES.values())):
+        return fairness_function
+    elif (
+        isinstance(fairness_function, type)
+        and fairness_function.__name__ in fairness_class
+    ):
+        if y_train is None:
+            raise ValueError(
+                "y_train is required when using {}.".format(fairness_function.__name__)
+            )
+        if s_train is None:
+            raise ValueError(
+                "s_train is required when using {}.".format(fairness_function.__name__)
+            )
+
+        y_unique = np.unique(y_train)
+        s_unique = np.unique(s_train)
+
+        if not np.all(y_unique == np.arange(y_unique.shape[0])):
+            raise ValueError(
+                "Targets should be consecutive positive integers: got {} but expected {}.".format(
+                    y_unique, np.arange(y_unique.shape[0])
+                )
+            )
+
+        if not np.all(s_unique == np.arange(s_unique.shape[0])):
+            raise ValueError(
+                "Sensitive attributes should be consecutive positive integers: got {} but expected {}.".format(
+                    s_unqiue, np.arange(s_unique.shape[0])
+                )
+            )
+
+        if fairness_function.__name__ == "EqualityOpportunity":
+            if y_desirable is None:
+                raise ValueError(
+                    "y_desirable is required when using {}.".format(
+                        fairness_function.__name__
+                    )
+                )
+            if not np.all([(y in y_unique) for y in y_desirable]):
+                raise ValueError(
+                    "Desirable outcomes should be a subset of possible targets: got {} but expected a subset of {}.".format(
+                        y_desirable, y_unique
+                    )
+                )
+
+            return fairness_function(y_unique, s_unique, y_train, s_train, y_desirable)
+        else:
+            return fairness_function(y_unique, s_unique, y_train, s_train)
     else:
-        raise NotImplementedError
+        raise ValueError(
+            "Fairness measure must be either a subclass of {base_class_name} or an instantiated object of a subclass of {base_class_name}.".format(
+                base_class_name=FairnessMeasure.__name__
+            )
+        )
     return fairness_function
