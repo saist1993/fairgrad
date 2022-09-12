@@ -49,6 +49,10 @@ for inputs, labels, protected_attributes in train_iterator:
     optimizer.step()
 ```
 
+
+We highly recommend to **standardize features** by removing the mean and scaling to unit variance.
+This can be done using standard scalar module in sklearn.
+
 # Citation
 ```
 @article{maheshwari2022fairgrad,
