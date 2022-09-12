@@ -6,6 +6,7 @@ from torch.optim import SGD
 from tqdm.auto import tqdm
 from utils import get_celeb_data
 from fairgrad.torch import CrossEntropyLoss
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 
@@ -86,6 +87,12 @@ def main():
         X_t, y_t, s_t, test_size=0.25
     )
 
+    # Standard Scalar
+    scaler = StandardScaler().fit(X_train)
+    X_train = scaler.transform(X_train)
+    X_valid = scaler.transform(X_valid)
+    X_test = scaler.transform(X_test)
+
     # Setting up the problem
     fairness_function = "equal_odds"
 
@@ -100,7 +107,6 @@ def main():
         y_train=y_train,
         s_train=s_train,
         fairness_measure=fairness_function,
-        n_iterations=n_iterations,
     )
 
     print("training the model")
@@ -112,7 +118,7 @@ def main():
         optimizer=optimizer,
         criterion=criterion,
         batch_size=batch_size,
-        n_iterations=1000,
+        n_iterations=n_iterations,
     )
 
     print("training metrics")
