@@ -116,81 +116,91 @@ class FairnessLoss(nn.modules.loss._Loss):
         else:
             return loss
 
-    def forward(self, input: Tensor, target: Tensor, s: Tensor = None) -> Tensor:
+    def forward(self, input: Tensor, target: Tensor, s: Tensor = None, mode: str = "train") -> Tensor:
         loss = self.base_loss(input, target)
 
         if s is None:
             self.fairness_function = None
             warnings.warn(
-                "FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. is missing. Reverting to standard {}.".format(
+                "FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. Reverting to standard {}.".format(
                     type(self.base_loss).__name__
                 ),
                 RuntimeWarning,
             )
 
         if self.fairness_function is not None:
-            groupwise_fairness = self.fairness_function.groupwise(
-                input.cpu().detach().numpy(),
-                target.cpu().detach().numpy(),
-                s.cpu().detach().numpy(),
-            )
-
-            if self.step_fairness != []:
-                groupwise_fairness = np.where(
-                    np.isnan(groupwise_fairness),
-                    self.step_fairness[-1],
-                    groupwise_fairness,
-                )
-            else:
-                groupwise_fairness = np.where(
-                    np.isnan(groupwise_fairness), 0, groupwise_fairness
+            if mode == "train":
+                groupwise_fairness = self.fairness_function.groupwise(
+                    input.cpu().detach().numpy(),
+                    target.cpu().detach().numpy(),
+                    s.cpu().detach().numpy(),
                 )
 
-            self.step_fairness.append(groupwise_fairness)
-
-            # Compute the weights
-            self.cumulative_fairness = np.clip(
-                self.cumulative_fairness
-                + self.fairness_rate
-                * np.hstack(
-                    (
-                        groupwise_fairness - self.epsilon,
-                        -(groupwise_fairness + self.epsilon),
+                if self.step_fairness != []:
+                    groupwise_fairness = np.where(
+                        np.isnan(groupwise_fairness),
+                        self.step_fairness[-1],
+                        groupwise_fairness,
                     )
-                ),
-                0,
-                None,
-            )
+                else:
+                    groupwise_fairness = np.where(
+                        np.isnan(groupwise_fairness), 0, groupwise_fairness
+                    )
 
-            lag_parameters = (
-                self.cumulative_fairness[:, : self.fairness_function.s_unique.shape[0]]
-                - self.cumulative_fairness[
-                    :, self.fairness_function.s_unique.shape[0] :
-                ]
-            )
-            partial_weights = (
-                self.fairness_function.C.T.dot(lag_parameters.reshape(-1, 1))
-            ).reshape(
-                self.fairness_function.y_unique.shape[0],
-                self.fairness_function.s_unique.shape[0],
-            )
-            weights = 1 + partial_weights / self.fairness_function.P
+                self.step_fairness.append(groupwise_fairness)
 
-            self.step_loss.append(self.reduce(loss))
-            self.step_groupwise_weights.append(weights * self.fairness_function.P)
+                # Compute the weights
+                self.cumulative_fairness = np.clip(
+                    self.cumulative_fairness
+                    + self.fairness_rate
+                    * np.hstack(
+                        (
+                            groupwise_fairness - self.epsilon,
+                            -(groupwise_fairness + self.epsilon),
+                        )
+                    ),
+                    0,
+                    None,
+                )
 
+                lag_parameters = (
+                    self.cumulative_fairness[:, : self.fairness_function.s_unique.shape[0]]
+                    - self.cumulative_fairness[
+                        :, self.fairness_function.s_unique.shape[0] :
+                    ]
+                )
+                partial_weights = (
+                    self.fairness_function.C.T.dot(lag_parameters.reshape(-1, 1))
+                ).reshape(
+                    self.fairness_function.y_unique.shape[0],
+                    self.fairness_function.s_unique.shape[0],
+                )
+                weights = 1 + partial_weights / self.fairness_function.P
+
+                self.step_loss.append(self.reduce(loss))
+                self.step_groupwise_weights.append(weights * self.fairness_function.P)
+
+            else:
+                if self.step_groupwise_weights != []:
+                    weights = self.step_groupwise_weights[-1] / self.fairness_function.P
+                else:
+                    weights = np.ones((self.fairness_function.y_unique.shape[0],self.fairness_function.s_unique.shape[0]))
+
+                    
             device = loss.get_device()
             if device >= 0:
                 device = f"cuda:{device}"
             else:
                 device = torch.device("cpu")
+                
             weighted_loss = loss * torch.tensor(
                 (weights)[target.cpu().detach().numpy(), s.cpu().detach().numpy()],
                 device=device,
             )
-
+            
             loss = weighted_loss
-            self.step_weighted_loss.append(self.reduce(loss))
+            if mode == "train":
+                self.step_weighted_loss.append(self.reduce(loss))
 
         return self.reduce(loss)
 
