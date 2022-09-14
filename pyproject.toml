@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fairgrad"
-version = "0.1.8"
+version = "0.1.9"
 description = ""
 authors = ["gmaheshwari <gaurav.maheshwari@inria.fr>", "mperrot <michael.perrot@inria.fr>"]
 readme = 'README.md'
