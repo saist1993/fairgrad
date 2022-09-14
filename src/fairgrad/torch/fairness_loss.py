@@ -121,16 +121,7 @@ class FairnessLoss(nn.modules.loss._Loss):
     ) -> Tensor:
         loss = self.base_loss(input, target)
 
-        if s is None:
-            # self.fairness_function = None
-            warnings.warn(
-                "FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. Reverting to standard {}.".format(
-                    type(self.base_loss).__name__
-                ),
-                RuntimeWarning,
-            )
-
-        if self.fairness_function is not None:
+        if self.fairness_function is not None and s is not None:
             if mode == "train":
                 groupwise_fairness = self.fairness_function.groupwise(
                     input.cpu().detach().numpy(),
@@ -209,5 +200,14 @@ class FairnessLoss(nn.modules.loss._Loss):
             loss = weighted_loss
             if mode == "train":
                 self.step_weighted_loss.append(self.reduce(loss))
+        else:
+            if s is None:
+                # self.fairness_function = None
+                warnings.warn(
+                    "FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. Reverting to standard {}.".format(
+                        type(self.base_loss).__name__
+                    ),
+                    RuntimeWarning,
+                )
 
         return self.reduce(loss)

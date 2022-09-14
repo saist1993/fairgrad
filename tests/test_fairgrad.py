@@ -148,7 +148,7 @@ class TestFairnessMeasures(unittest.TestCase):
 
 
 def test_version():
-    assert __version__ == "0.1.9"
+    assert __version__ == "0.2.0"
 
 
 def test_complete_cross_entropy_loss_with_tensors():
