@@ -122,7 +122,7 @@ class FairnessLoss(nn.modules.loss._Loss):
         loss = self.base_loss(input, target)
 
         if s is None:
-            self.fairness_function = None
+            # self.fairness_function = None
             warnings.warn(
                 "FairGrad mechanism is not employed as the sensitive attribute s was not provided during the forward pass. Reverting to standard {}.".format(
                     type(self.base_loss).__name__
