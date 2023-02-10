@@ -338,7 +338,7 @@ def instantiate_fairness(
         if not np.all(s_unique == np.arange(s_unique.shape[0])):
             raise ValueError(
                 "Sensitive attributes should be consecutive positive integers: got {} but expected {}.".format(
-                    s_unqiue, np.arange(s_unique.shape[0])
+                    s_unique, np.arange(s_unique.shape[0])
                 )
             )
 
