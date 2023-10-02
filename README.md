@@ -32,7 +32,7 @@ fairness_rate (float, optional): Parameter which intertwines current fairness we
 
 ```python
 # Note this is short snippet. One still needs to models and iterators.
-# Full worked out example is available here - @TODO
+# Full worked out example is available [here](https://github.com/saist1993/fairgrad/blob/main/examples/simple_classification_dataset.py)
 
 from fairgrad.torch import CrossEntropyLoss
 
