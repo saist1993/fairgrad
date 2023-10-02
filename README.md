@@ -30,7 +30,7 @@ epsilon (float, optional): The slack which is allowed for the final fairness lev
 fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
 ```
 
-Below is a small example snippet. For a fully worked out example is available [here](https://github.com/saist1993/fairgrad/blob/main/examples/simple_classification_dataset.py)
+Below is a small example snippet. A fully worked out example is available [here](https://github.com/saist1993/fairgrad/blob/main/examples/simple_classification_dataset.py)
 ```python
 import torch
 from fairgrad.torch import CrossEntropyLoss
