@@ -30,26 +30,17 @@ epsilon (float, optional): The slack which is allowed for the final fairness lev
 fairness_rate (float, optional): Parameter which intertwines current fairness weights with sum of previous fairness rates.
 ```
 
+Below is a small example snippet. For a fully worked out example is available [here](https://github.com/saist1993/fairgrad/blob/main/examples/simple_classification_dataset.py)
 ```python
-# Note this is short snippet. One still needs to models and iterators.
-# Full worked out example is available [here](https://github.com/saist1993/fairgrad/blob/main/examples/simple_classification_dataset.py)
-
+import torch
 from fairgrad.torch import CrossEntropyLoss
-
-# define cross entropy loss 
-criterion = CrossEntropyLoss(fairness_related_meta_data=fairness_related_meta_data)
-
-# Train loop
-
-for inputs, labels, protected_attributes in train_iterator:
-    model.train()
-    optimizer.zero_grad()
-    output = model(inputs)
-    loss = criterion(output, labels, protected_attributes, mode='train')
-    loss.backward()
-    optimizer.step()
+input = torch.randn(10, 5, requires_grad=True)
+target = torch.empty(10, dtype=torch.long).random_(2)
+s = torch.empty(10, dtype=torch.long).random_(2) # protected attribute
+loss = CrossEntropyLoss(y_train = target, s_train = s, fairness_measure = 'equal_odds')
+output = loss(input, target, s, mode='train')
+output.backward()
 ```
-
 
 We highly recommend to **standardize features** by removing the mean and scaling to unit variance.
 This can be done using standard scalar module in sklearn.
